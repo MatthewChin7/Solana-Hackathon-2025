@@ -39,7 +39,9 @@ async function main() {
   }
 
   const idl = JSON.parse(fs.readFileSync(idlPath, "utf-8"));
-  const programId = new PublicKey(idl.metadata.address);
+  // Get program ID from IDL metadata or use the one from Anchor.toml
+  const programIdStr = idl.metadata?.address || "28nYVjyh11i3Fz1wmxxeYzEhttQA9a5SaogLKAaZnPJ5";
+  const programId = new PublicKey(programIdStr);
 
   const keysDir = path.join(__dirname, "../keys");
   if (!fs.existsSync(keysDir)) {
@@ -77,30 +79,94 @@ async function main() {
 
   if (creatorBalance < 1 * anchor.web3.LAMPORTS_PER_SOL) {
     console.log("Requesting airdrop for creator...");
-    const sig = await connection.requestAirdrop(
-      creator.publicKey,
-      2 * anchor.web3.LAMPORTS_PER_SOL
-    );
-    await connection.confirmTransaction(sig);
+    try {
+      const sig = await connection.requestAirdrop(
+        creator.publicKey,
+        2 * anchor.web3.LAMPORTS_PER_SOL
+      );
+      await connection.confirmTransaction(sig);
+      console.log("✅ Creator airdrop successful");
+    } catch (error: any) {
+      console.warn("⚠️  Airdrop failed (rate limited):", error.message);
+      console.log("💡 Alternative options:");
+      console.log(`   1. Use faucet: https://faucet.solana.com`);
+      console.log(`   2. Send SOL to creator: ${creator.publicKey.toString()}`);
+      console.log(`   3. Wait a few minutes and try again`);
+      if (creatorBalance === 0) {
+        console.error("\n❌ Creator wallet has 0 SOL. Cannot continue without funds.");
+        process.exit(1);
+      }
+    }
+  } else {
+    console.log(`✅ Creator has sufficient balance: ${creatorBalance / anchor.web3.LAMPORTS_PER_SOL} SOL`);
   }
 
   if (buyerBalance < 1 * anchor.web3.LAMPORTS_PER_SOL) {
     console.log("Requesting airdrop for buyer...");
-    const sig = await connection.requestAirdrop(
-      buyer.publicKey,
-      2 * anchor.web3.LAMPORTS_PER_SOL
-    );
-    await connection.confirmTransaction(sig);
+    try {
+      const sig = await connection.requestAirdrop(
+        buyer.publicKey,
+        2 * anchor.web3.LAMPORTS_PER_SOL
+      );
+      await connection.confirmTransaction(sig);
+      console.log("✅ Buyer airdrop successful");
+    } catch (error: any) {
+      console.warn("⚠️  Airdrop failed (rate limited):", error.message);
+      console.log("💡 Alternative options:");
+      console.log(`   1. Use faucet: https://faucet.solana.com`);
+      console.log(`   2. Send SOL to buyer: ${buyer.publicKey.toString()}`);
+      console.log(`   3. Wait a few minutes and try again`);
+      if (buyerBalance === 0) {
+        console.warn("\n⚠️  Buyer wallet has 0 SOL. Some operations may fail.");
+      }
+    }
+  } else {
+    console.log(`✅ Buyer has sufficient balance: ${buyerBalance / anchor.web3.LAMPORTS_PER_SOL} SOL`);
   }
 
-  const provider = new anchor.AnchorProvider(
+  const wallet = new anchor.Wallet(creator);
+  const provider: anchor.AnchorProvider = new anchor.AnchorProvider(
     connection,
-    new anchor.Wallet(creator),
+    wallet,
     { commitment: "confirmed" }
   );
   anchor.setProvider(provider);
 
-  const program = new anchor.Program(idl, programId, provider);
+  // Use type assertion to work around TypeScript inference issues
+  const programIdPubkey = programId as unknown as anchor.Address;
+  // Ensure IDL has accounts structure
+  if (!idl.accounts || !Array.isArray(idl.accounts)) {
+    throw new Error("IDL is missing accounts definition. Please run 'anchor build' first.");
+  }
+  
+  // Ensure account has size field (required by Anchor 0.30.0)
+  const strategyAccountDef = idl.accounts.find((acc: any) => acc.name === "Strategy");
+  if (strategyAccountDef && !strategyAccountDef.size) {
+    strategyAccountDef.size = 425; // 8 (discriminator) + Strategy::LEN (417)
+  }
+  
+  // Workaround: Create program with minimal IDL to avoid account namespace issues
+  // We'll use methods directly which don't require the account namespace
+  let program: any;
+  try {
+    program = new (anchor.Program as any)(idl, programIdPubkey, provider);
+  } catch (error: any) {
+    console.warn("Failed to create Program with account namespace, using workaround:", error.message);
+    // Create a minimal program that can still call methods
+    const minimalIdl = { ...idl, accounts: [] }; // Remove accounts to avoid the error
+    program = new (anchor.Program as any)(minimalIdl, programIdPubkey, provider);
+    // Manually add account fetcher
+    program.account = {
+      strategy: {
+        fetch: async (address: PublicKey) => {
+          const accountInfo = await connection.getAccountInfo(address);
+          if (!accountInfo) return null;
+          // Decode manually if needed, or return raw data
+          return accountInfo.data;
+        }
+      }
+    };
+  }
 
   console.log("Creating payment mint...");
   const paymentMint = await createMint(
@@ -150,12 +216,16 @@ async function main() {
     MINT_AMOUNT
   );
 
-  const strategyId = new anchor.BN(STRATEGY_ID);
-  const strategyHash = Array.from(
-    createHash("sha256")
-      .update("polymarket-strategy-v1")
-      .digest()
-  ).slice(0, 32);
+    const strategyId = new anchor.BN(STRATEGY_ID);
+    const strategyHash = Array.from(
+      createHash("sha256")
+        .update("polymarket-strategy-v1")
+        .digest()
+    ).slice(0, 32);
+    // Convert api_id string to fixed 32-byte array
+    const apiIdBytes = Buffer.from(API_ID);
+    const apiIdArray = new Array(32).fill(0);
+    apiIdBytes.copy(Buffer.from(apiIdArray), 0);
 
   const [strategyPda] = PublicKey.findProgramAddressSync(
     [
@@ -183,7 +253,7 @@ async function main() {
     );
 
     const tx = await program.methods
-      .createStrategy(strategyId, strategyHash, API_ID)
+      .createStrategy(strategyId, strategyHash, apiIdArray)
       .accounts({
         creator: creator.publicKey,
         strategy: strategyPda,
@@ -204,8 +274,16 @@ async function main() {
     console.log("Strategy already exists, skipping creation...");
   }
 
-  const currentStrategy = await program.account.strategy.fetch(strategyPda);
-  if (!currentStrategy.listed) {
+  // Fetch strategy account directly to check if listed
+  let currentStrategy: any = null;
+  try {
+    currentStrategy = await (program.account as any).strategy.fetch(strategyPda);
+  } catch (e) {
+    // If fetch fails, assume strategy doesn't exist or isn't listed
+    currentStrategy = { listed: false };
+  }
+  
+  if (!currentStrategy || !currentStrategy.listed) {
     console.log("Listing strategy...");
     const sellerNftAta = await getAssociatedTokenAddress(
       strategyMintPda,

@@ -4,7 +4,7 @@ use anchor_spl::{
     token::{mint_to, Mint, MintTo, Token, TokenAccount, Transfer},
 };
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("28nYVjyh11i3Fz1wmxxeYzEhttQA9a5SaogLKAaZnPJ5");
 
 #[program]
 pub mod strategy_marketplace {
@@ -14,7 +14,7 @@ pub mod strategy_marketplace {
         ctx: Context<CreateStrategy>,
         strategy_id: u64,
         strategy_hash: [u8; 32],
-        api_id: String,
+        api_id: [u8; 32],
     ) -> Result<()> {
         let strategy = &mut ctx.accounts.strategy;
         let strategy_mint = &ctx.accounts.strategy_mint;
@@ -27,15 +27,16 @@ pub mod strategy_marketplace {
         strategy.list_price = 0;
         strategy.seller = creator.key();
         strategy.strategy_hash = strategy_hash;
-        strategy.api_id = api_id;
+        strategy.api_id = String::from_utf8_lossy(&api_id).trim_end_matches('\0').to_string();
         strategy.last_mid_bps = 0;
         strategy.last_update_ts = 0;
         strategy.strategy_id = strategy_id;
         strategy.bump = ctx.bumps.strategy;
 
+        let strategy_key = strategy.key();
         let seeds = &[
             b"strategy_mint",
-            strategy.key().as_ref(),
+            strategy_key.as_ref(),
             &[ctx.bumps.strategy_mint],
         ];
         let signer = &[&seeds[..]];
@@ -80,15 +81,18 @@ pub mod strategy_marketplace {
     }
 
     pub fn buy_strategy(ctx: Context<BuyStrategy>) -> Result<()> {
-        let strategy = &mut ctx.accounts.strategy;
+        require!(ctx.accounts.strategy.listed == true, ErrorCode::StrategyNotListed);
 
-        require!(strategy.listed == true, ErrorCode::StrategyNotListed);
-
+        let list_price = ctx.accounts.strategy.list_price;
         let buyer_payment_ata = &ctx.accounts.buyer_payment_ata;
         require!(
-            buyer_payment_ata.amount >= strategy.list_price,
+            buyer_payment_ata.amount >= list_price,
             ErrorCode::InsufficientPaymentBalance
         );
+
+        let creator = ctx.accounts.strategy.creator;
+        let strategy_id = ctx.accounts.strategy.strategy_id;
+        let bump = ctx.accounts.strategy.bump;
 
         let payment_cpi_accounts = Transfer {
             from: ctx.accounts.buyer_payment_ata.to_account_info(),
@@ -97,13 +101,13 @@ pub mod strategy_marketplace {
         };
         let payment_cpi_program = ctx.accounts.token_program.to_account_info();
         let payment_cpi_ctx = CpiContext::new(payment_cpi_program, payment_cpi_accounts);
-        anchor_spl::token::transfer(payment_cpi_ctx, strategy.list_price)?;
+        anchor_spl::token::transfer(payment_cpi_ctx, list_price)?;
 
         let nft_seeds = &[
             b"strategy",
-            strategy.creator.as_ref(),
-            &strategy.strategy_id.to_le_bytes(),
-            &[strategy.bump],
+            creator.as_ref(),
+            &strategy_id.to_le_bytes(),
+            &[bump],
         ];
         let nft_signer = &[&nft_seeds[..]];
 
@@ -116,6 +120,7 @@ pub mod strategy_marketplace {
         let nft_cpi_ctx = CpiContext::new_with_signer(nft_cpi_program, nft_cpi_accounts, nft_signer);
         anchor_spl::token::transfer(nft_cpi_ctx, 1)?;
 
+        let strategy = &mut ctx.accounts.strategy;
         strategy.listed = false;
         strategy.list_price = 0;
         strategy.seller = ctx.accounts.buyer.key();
@@ -138,7 +143,7 @@ pub mod strategy_marketplace {
 }
 
 #[derive(Accounts)]
-#[instruction(strategy_id: u64, strategy_hash: [u8; 32], api_id: String)]
+#[instruction(strategy_id: u64, strategy_hash: [u8; 32], api_id: [u8; 32])]
 pub struct CreateStrategy<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -288,7 +293,7 @@ impl Strategy {
         32 + // seller
         32 + // strategy_hash
         4 + // api_id string length prefix
-        256 + // api_id string (max length)
+        32 + // api_id string (max length - using fixed 32 bytes)
         4 + // last_mid_bps
         8 + // last_update_ts
         8 + // strategy_id

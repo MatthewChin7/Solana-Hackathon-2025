@@ -7,7 +7,9 @@
     "test": "anchor test",
     "bootstrap:devnet": "ts-node scripts/bootstrap-devnet.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@solana/spl-token": "^0.3.9"
+  },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.30.0",
     "@solana/web3.js": "^1.87.6",

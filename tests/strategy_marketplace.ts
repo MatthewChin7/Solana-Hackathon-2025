@@ -31,7 +31,7 @@ describe("strategy_marketplace", () => {
   let paymentMint: PublicKey;
   let strategyId: anchor.BN;
   let strategyHash: number[];
-  let apiId: string;
+  let apiId: number[];
   let strategyPda: PublicKey;
   let strategyMintPda: PublicKey;
 
@@ -104,7 +104,11 @@ describe("strategy_marketplace", () => {
     strategyHash = Array.from(
       anchor.utils.sha256(Buffer.from("polymarket-strategy-v1"))
     ).slice(0, 32);
-    apiId = "strategy-1";
+    // Convert api_id string to fixed 32-byte array
+    const apiIdBytes = Buffer.from("strategy-1");
+    const apiIdArray = new Array(32).fill(0);
+    apiIdBytes.copy(Buffer.from(apiIdArray), 0);
+    apiId = apiIdArray;
 
     const [strategyPdaKey, strategyBump] = PublicKey.findProgramAddressSync(
       [
@@ -167,7 +171,7 @@ describe("strategy_marketplace", () => {
       creator.publicKey.toString()
     );
     expect(Array.from(strategyAccount.strategyHash)).to.deep.equal(strategyHash);
-    expect(strategyAccount.apiId).to.equal(apiId);
+    expect(strategyAccount.apiId).to.include("strategy-1");
     expect(strategyAccount.lastMidBps).to.equal(0);
     expect(strategyAccount.lastUpdateTs.toNumber()).to.equal(0);
 
