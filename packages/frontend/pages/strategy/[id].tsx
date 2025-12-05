@@ -3,7 +3,9 @@ import { useRouter } from "next/router";
 import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
 import bs58 from "bs58";
+import { PublicKey } from "@solana/web3.js";
 import { solanaClient, StrategyData } from "../../lib/solanaClient";
+import { useStrategyTransactions } from "../../hooks/useStrategyTransactions";
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
 
@@ -19,6 +21,8 @@ export default function StrategyDetail() {
     const [signalLoading, setSignalLoading] = useState(false);
     const [signalData, setSignalData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+
+    const { buyStrategy, states: { buy: buyState } } = useStrategyTransactions();
 
     useEffect(() => {
         if (id && typeof id === "string") {
@@ -85,6 +89,28 @@ export default function StrategyDetail() {
             setError(e.response?.data?.error || "Failed to fetch signal");
         } finally {
             setSignalLoading(false);
+        }
+    };
+
+    const handleBuy = async () => {
+        if (!strategy || !publicKey) return;
+
+        // Check if demo strategy
+        if (strategy.publicKey.startsWith("strat-")) {
+            alert("This is a demo strategy on Devnet/Testnet. You cannot purchase it with real SOL/USDC.");
+            return;
+        }
+
+        try {
+            setError(null);
+            await buyStrategy({
+                strategyPublicKey: new PublicKey(strategy.publicKey)
+            });
+            // Refresh ownership check
+            checkNftOwnership();
+        } catch (e: any) {
+            console.error("Buy error:", e);
+            setError(e.message || "Failed to purchase strategy");
         }
     };
 
@@ -201,8 +227,12 @@ export default function StrategyDetail() {
                                     You need the Strategy NFT to access live signals.
                                 </p>
                                 {strategy.listed && (
-                                    <button className="btn btn-primary">
-                                        Purchase NFT
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleBuy}
+                                        disabled={buyState.loading}
+                                    >
+                                        {buyState.loading ? "Purchasing..." : "Purchase NFT"}
                                     </button>
                                 )}
                             </div>
