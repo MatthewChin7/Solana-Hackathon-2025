@@ -20,12 +20,19 @@ export function getCurrentSignal(): Signal | null {
 
 export async function updateFromPolymarket(tokenId: string): Promise<void> {
   try {
+    const apiKey = process.env.POLYMARKET_API_KEY;
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
     const response = await axios.get(
       `https://clob.polymarket.com/midpoint?token_id=${tokenId}`,
       {
-        headers: {
-          Accept: "application/json",
-        },
+        headers,
         timeout: 10000,
       }
     );
