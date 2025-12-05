@@ -1,6 +1,6 @@
 # Polytrader - Solana Hackathon 2025
 
-**Live Deployment:** [View on Vercel](https://solana-hackathon-2025-frontend-j9j7xhvtf-matthewchin7s-projects.vercel.app/)
+**Live Deployment:** [View on Vercel](https://solana-hackathon-2025-frontend.vercel.app/)
 
 Polytrader is a decentralized marketplace for algorithmic trading strategies on Solana. It allows strategy developers to tokenize their trading logic as NFTs and sell access to investors. Investors hold the Strategy NFT to unlock real-time trading signals, which can be executed automatically on platforms like Polymarket.
 
