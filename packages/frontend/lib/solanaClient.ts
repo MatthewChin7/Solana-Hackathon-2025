@@ -3,8 +3,8 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 
 
+
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!;
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
 
 export interface StrategyData {
     publicKey: string;
@@ -37,7 +37,7 @@ export class FrontendSolanaClient {
     // Fetch all strategies from backend API
     async getAllStrategies(): Promise<StrategyData[]> {
         try {
-            const res = await fetch(`${SERVER_URL}/api/strategies`);
+            const res = await fetch(`/api/strategies`);
             if (!res.ok) throw new Error("Failed to fetch strategies");
             return await res.json();
         } catch (e) {
@@ -49,7 +49,7 @@ export class FrontendSolanaClient {
     // Fetch single strategy from backend API
     async getStrategy(pubkey: string): Promise<StrategyData | null> {
         try {
-            const res = await fetch(`${SERVER_URL}/api/strategies/${pubkey}`);
+            const res = await fetch(`/api/strategies/${pubkey}`);
             if (!res.ok) return null;
             return await res.json();
         } catch (e) {
@@ -61,7 +61,7 @@ export class FrontendSolanaClient {
     // Fetch marketplace stats from backend API
     async getMarketplaceStats(): Promise<MarketplaceStats> {
         try {
-            const res = await fetch(`${SERVER_URL}/api/stats`);
+            const res = await fetch(`/api/stats`);
             if (!res.ok) throw new Error("Failed to fetch stats");
             return await res.json();
         } catch (e) {
@@ -78,7 +78,7 @@ export class FrontendSolanaClient {
     // Check NFT balance via backend API
     async checkNftBalance(wallet: string, mint: string): Promise<{ balance: number; hasAccess: boolean }> {
         try {
-            const res = await fetch(`${SERVER_URL}/api/nft-balance/${wallet}/${mint}`);
+            const res = await fetch(`/api/nft-balance/${wallet}/${mint}`);
             if (!res.ok) throw new Error("Failed to check balance");
             return await res.json();
         } catch (e) {

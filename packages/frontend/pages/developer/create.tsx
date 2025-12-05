@@ -39,7 +39,7 @@ async function signal(polymarket) {
 }
 `;
 
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
+
 
 export default function CreateStrategy() {
     const { publicKey } = useWallet();
@@ -66,7 +66,7 @@ export default function CreateStrategy() {
         setTestResult(null);
 
         try {
-            const res = await fetch(`${SERVER_URL}/api/strategy/test`, {
+            const res = await fetch(`/api/strategy/test`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ code })
@@ -91,7 +91,7 @@ export default function CreateStrategy() {
 
         try {
             // 1. Upload code to IPFS
-            const uploadRes = await fetch(`${SERVER_URL}/api/strategy/upload`, {
+            const uploadRes = await fetch(`/api/strategy/upload`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

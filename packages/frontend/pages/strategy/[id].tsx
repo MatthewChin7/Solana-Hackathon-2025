@@ -7,7 +7,7 @@ import { PublicKey } from "@solana/web3.js";
 import { solanaClient, StrategyData } from "../../lib/solanaClient";
 import { useStrategyTransactions } from "../../hooks/useStrategyTransactions";
 
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000";
+
 
 export default function StrategyDetail() {
     const router = useRouter();
@@ -78,7 +78,7 @@ export default function StrategyDetail() {
             const signature = await signMessage(messageBytes);
             const signatureBase58 = bs58.encode(signature);
 
-            const res = await axios.post(`${SERVER_URL}/signal`, {
+            const res = await axios.post(`/api/signal`, {
                 publicKey: publicKey.toBase58(),
                 signature: signatureBase58,
                 timestamp: timestamp
