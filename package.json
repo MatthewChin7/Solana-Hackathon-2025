@@ -1,0 +1,23 @@
+{
+  "name": "strategy-marketplace",
+  "version": "0.1.0",
+  "description": "Solana Strategy Marketplace with Polymarket Integration",
+  "private": true,
+  "scripts": {
+    "test": "anchor test",
+    "bootstrap:devnet": "ts-node scripts/bootstrap-devnet.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.0",
+    "@solana/web3.js": "^1.87.6",
+    "@types/bn.js": "^5.1.0",
+    "@types/node": "^20.10.0",
+    "chai": "^4.3.10",
+    "mocha": "^10.2.0",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
+
