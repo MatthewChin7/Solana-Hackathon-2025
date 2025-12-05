@@ -11,7 +11,7 @@ export class StrategyEngine {
 
     async updateSignal() {
         try {
-            // Simulate a black-box strategy engine
+            // Simulate a Polytrader strategy engine
             // In a real production environment, this would connect to Polymarket CLOB API
             // and analyze order book depth, recent trades, and external news.
 

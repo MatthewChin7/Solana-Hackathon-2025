@@ -56,10 +56,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/developer/strategies", label: "My Strategies" },
     ];
 
+    import Head from "next/head";
+
     const navLinks = mode === "trader" ? traderLinks : developerLinks;
 
     return (
         <DashboardContext.Provider value={{ mode, setMode }}>
+            <Head>
+                <title>Polytrader - Algorithmic Strategy Marketplace</title>
+                <meta name="description" content="Decentralized marketplace for algorithmic prediction strategies on Solana." />
+            </Head>
             <div className="app-container">
                 <nav className="nav">
                     {/* Left: Logo & Partners */}
