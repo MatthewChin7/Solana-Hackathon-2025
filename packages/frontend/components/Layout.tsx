@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import Image from "next/image";
+import Head from "next/head";
 
 // Dashboard context for global state
 type DashboardMode = "trader" | "developer";
@@ -56,7 +57,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/developer/strategies", label: "My Strategies" },
     ];
 
-    import Head from "next/head";
 
     const navLinks = mode === "trader" ? traderLinks : developerLinks;
 
